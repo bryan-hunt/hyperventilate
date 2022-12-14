@@ -13,42 +13,10 @@ from breathe.parser.compound import (
 )
 from breathe.renderer.sphinxrenderer import SphinxRenderer
 from breathe.renderer.filter import OpenFilter
-from docutils import frontend, nodes, parsers, utils
+from docutils import frontend, parsers, utils
 
-from sphinx.testing.fixtures import (
-    test_params,
-    app_params,
-    make_app,
-    shared_result,
-    sphinx_test_tempdir,
-    rootdir,
-)
-from sphinx.testing.path import path
-
-sphinx.locale.init([], "")
-
-
-@pytest.fixture(scope="function")
-def app(test_params, app_params, make_app, shared_result):
-    """
-    Based on sphinx.testing.fixtures.app
-    """
-    args, kwargs = app_params
-    assert "srcdir" in kwargs
-    kwargs["srcdir"].makedirs(exist_ok=True)
-    (kwargs["srcdir"] / "conf.py").write_text("")
-    app_ = make_app(*args, **kwargs)
-    yield app_
-
-    print("# testroot:", kwargs.get("testroot", "root"))
-    print("# builder:", app_.builder.name)
-    print("# srcdir:", app_.srcdir)
-    print("# outdir:", app_.outdir)
-    print("# status:", "\n" + app_._status.getvalue())
-    print("# warning:", "\n" + app_._warning.getvalue())
-
-    if test_params["shared_result"]:
-        shared_result.store(test_params["shared_result"], app_)
+from .mocks import MockReporter
+from .utils import find_node
 
 
 class WrappedDoxygenNode:
@@ -137,17 +105,6 @@ class MockState:
         pass
 
 
-class MockReporter:
-    def __init__(self):
-        pass
-
-    def warning(self, description, line):
-        pass
-
-    def debug(self, message):
-        pass
-
-
 class MockStateMachine:
     def __init__(self):
         self.reporter = MockReporter()
@@ -196,11 +153,6 @@ class MockTargetHandler:
         pass
 
 
-class MockDocument:
-    def __init__(self):
-        self.reporter = MockReporter()
-
-
 class MockCompoundParser:
     """
     A compound parser reads a doxygen XML file from disk; this mock implements
@@ -217,77 +169,6 @@ class MockCompoundParser:
     def parse(self, compoundname):
         compounddef = self.compound_dict[compoundname]
         return self.MockFileData(compounddef)
-
-
-class NodeFinder(nodes.NodeVisitor):
-    """Find node with specified class name."""
-
-    def __init__(self, name, document):
-        nodes.NodeVisitor.__init__(self, document)
-        self.name = name
-        self.found_nodes = []
-
-    def unknown_visit(self, node):
-        if node.__class__.__name__ == self.name:
-            self.found_nodes.append(node)
-
-
-def find_nodes(nodes, name):
-    """Find all docutils nodes with specified class name in *nodes*."""
-    finder = NodeFinder(name, MockDocument())
-    for node in nodes:
-        node.walk(finder)
-    return finder.found_nodes
-
-
-def find_node(nodes, name):
-    """
-    Find a single docutils node with specified class name in *nodes*.
-    Throw an exception if there isn't exactly one such node.
-    """
-    found_nodes = find_nodes(nodes, name)
-    if len(found_nodes) != 1:
-        raise Exception("the number of nodes {0} is {1}".format(name, len(found_nodes)))
-    return found_nodes[0]
-
-
-def test_find_nodes():
-    section = nodes.section()
-    foo = nodes.Text("foo")
-    desc = nodes.description()
-    bar = nodes.Text("bar")
-    section.children = [foo, desc, bar]
-    assert find_nodes(section, "description") == [desc]
-    assert find_nodes([section, desc], "description") == [desc, desc]
-    assert find_nodes([], "description") == []
-    assert find_nodes(section, "unknown") == []
-    assert find_nodes(section, "Text") == [foo, bar]
-
-
-def check_exception(func, message):
-    """Check if func() throws an exception with the specified message."""
-    exception = None
-    try:
-        func()
-    except Exception as e:
-        exception = e
-    print(str(exception))
-    assert exception and str(exception) == message
-
-
-def test_find_node():
-    section = nodes.section()
-    foo = nodes.Text("foo")
-    desc = nodes.description()
-    bar = nodes.Text("bar")
-    section.children = [foo, desc, bar]
-    assert find_node(section, "description") == desc
-    check_exception(
-        lambda: find_node([section, desc], "description"), "the number of nodes description is 2"
-    )
-    check_exception(lambda: find_node([], "description"), "the number of nodes description is 0")
-    check_exception(lambda: find_node([section], "unknown"), "the number of nodes unknown is 0")
-    check_exception(lambda: find_node([section], "Text"), "the number of nodes Text is 2")
 
 
 def render(
@@ -316,6 +197,7 @@ def render(
     return renderer.render(member_def)
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -347,6 +229,7 @@ def test_render_func(app):
         assert param[0][0] == "int"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_typedef(app):
     member_def = WrappedMemberDef(
         kind="typedef", definition="typedef int foo", type_="int", name="foo"
@@ -355,6 +238,7 @@ def test_render_typedef(app):
     assert signature.astext() == "typedef int foo"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_c_typedef(app):
     member_def = WrappedMemberDef(
         kind="typedef", definition="typedef unsigned int bar", type_="unsigned int", name="bar"
@@ -363,6 +247,7 @@ def test_render_c_typedef(app):
     assert signature.astext() == "typedef unsigned int bar"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_c_function_typedef(app):
     member_def = WrappedMemberDef(
         kind="typedef",
@@ -384,6 +269,7 @@ def test_render_c_function_typedef(app):
         pass
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_using_alias(app):
     member_def = WrappedMemberDef(
         kind="typedef", definition="using foo = int", type_="int", name="foo"
@@ -392,6 +278,7 @@ def test_render_using_alias(app):
     assert signature.astext() == "using foo = int"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_const_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -406,6 +293,7 @@ def test_render_const_func(app):
     assert "_CPPv2NK1fEv" in signature["ids"]
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_lvalue_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -420,6 +308,7 @@ def test_render_lvalue_func(app):
     assert signature.astext().endswith("&")
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_rvalue_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -434,6 +323,7 @@ def test_render_rvalue_func(app):
     assert signature.astext().endswith("&&")
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_const_lvalue_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -449,6 +339,7 @@ def test_render_const_lvalue_func(app):
     assert signature.astext().endswith("const &")
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_const_rvalue_func(app):
     member_def = WrappedMemberDef(
         kind="function",
@@ -464,6 +355,7 @@ def test_render_const_rvalue_func(app):
     assert signature.astext().endswith("const &&")
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_variable_initializer(app):
     member_def = WrappedMemberDef(
         kind="variable",
@@ -476,6 +368,7 @@ def test_render_variable_initializer(app):
     assert signature.astext() == "const int EOF = -1"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_define_initializer(app):
     member_def = WrappedMemberDef(
         kind="define",
@@ -499,6 +392,7 @@ def test_render_define_initializer(app):
     assert signature_wo_initializer.astext() == "MAX_LENGTH_NO_INITIALIZER"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_define_no_initializer(app):
     sphinx.addnodes.setup(app)
     member_def = WrappedMemberDef(kind="define", name="USE_MILK")
@@ -506,6 +400,7 @@ def test_render_define_no_initializer(app):
     assert signature.astext() == "USE_MILK"
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_render_innergroup(app):
     refid = "group__innergroup"
     mock_compound_parser = MockCompoundParser(
@@ -574,6 +469,7 @@ def get_matches(datafile):
     return argsstrings, matches
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_resolve_overrides(app):
     # Test that multiple function overrides works
     argsstrings, matches = get_matches("arange.xml")
@@ -585,6 +481,7 @@ def test_resolve_overrides(app):
         ret = cls._resolve_function(matches, ast_param, None)
 
 
+@pytest.mark.sphinx(testroot="empty")
 def test_ellipsis(app):
     argsstrings, matches = get_matches("ellipsis.xml")
     cls = get_directive(app)

@@ -5,6 +5,8 @@ from breathe.renderer.sphinxrenderer import get_param_decl, get_definition_witho
 from breathe.parser.compoundsuper import memberdefType
 from breathe import path_handler
 
+from docutils import nodes
+from .utils import find_node, find_nodes
 
 class TestUtils(TestCase):
     def test_param_decl(self):
@@ -84,3 +86,42 @@ class TestPathHandler(TestCase):
         self.assertEqual(path_handler.includes_directory("directory/file.h"), True)
         self.assertEqual(path_handler.includes_directory("directory\\file.h"), True)
         self.assertEqual(path_handler.includes_directory("file.h"), False)
+
+
+def test_find_nodes():
+    section = nodes.section()
+    foo = nodes.Text("foo")
+    desc = nodes.description()
+    bar = nodes.Text("bar")
+    section.children = [foo, desc, bar]
+    assert find_nodes(section, "description") == [desc]
+    assert find_nodes([section, desc], "description") == [desc, desc]
+    assert find_nodes([], "description") == []
+    assert find_nodes(section, "unknown") == []
+    assert find_nodes(section, "Text") == [foo, bar]
+
+
+def check_exception(func, message):
+    """Check if func() throws an exception with the specified message."""
+    exception = None
+    try:
+        func()
+    except Exception as e:
+        exception = e
+    print(str(exception))
+    assert exception and str(exception) == message
+
+
+def test_find_node():
+    section = nodes.section()
+    foo = nodes.Text("foo")
+    desc = nodes.description()
+    bar = nodes.Text("bar")
+    section.children = [foo, desc, bar]
+    assert find_node(section, "description") == desc
+    check_exception(
+        lambda: find_node([section, desc], "description"), "the number of nodes description is 2"
+    )
+    check_exception(lambda: find_node([], "description"), "the number of nodes description is 0")
+    check_exception(lambda: find_node([section], "unknown"), "the number of nodes unknown is 0")
+    check_exception(lambda: find_node([section], "Text"), "the number of nodes Text is 2")
