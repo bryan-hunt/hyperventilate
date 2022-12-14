@@ -1,10 +1,12 @@
-Hyperventilate is a fork of Breathe to demonstrate experimental updates.
+Hyperventilate is a fork of `Breathe <https://github.com/breathe-doc/breathe>`_ to demonstrate experimental updates.
 
 Project Goals
+-------------
+
 * Maintain the existing external breathe interfaces (include module name)
-* Preserve existing Sphinx directives
+* Preserve existing `Sphinx <https://github.com/sphinx-doc/sphinx>`_ directives
 * Improve speed and memory usage especially when used with other projects
-  such as exhale
+  such as `exhale <https://github.com/svenevs/exhale>`_.
 * Provide a framework for quick and easy additions of new features from
   Doxygen and Sphinx
 * Provide a python level configuration interface to extend and modify
@@ -18,7 +20,7 @@ Download
 
 Because Hyperventilate uses the same module name as Breathe they may not be
 installed simulateously. It is recommended that one uses a python virtual
-environment:
+environment::
 
     python -m venv .venv
 
