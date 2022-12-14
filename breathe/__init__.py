@@ -1,11 +1,19 @@
 from breathe.directives.setup import setup as directive_setup
 from breathe.file_state_cache import setup as file_state_cache_setup
 from breathe.renderer.sphinxrenderer import setup as renderer_setup
-
 from sphinx.application import Sphinx
 
-# Keep in sync with setup.py __version__
-__version__ = "4.34.0"
+try:
+    # Released Package
+    from breathe._version import __version__
+except ImportError:
+    try:
+        # Development Mode
+        from setuptools_scm import get_version
+        __version__ = get_version(root='..', relative_to=__file__)
+    except ImportError:
+        # Dummy Value for incomplete environments
+        __version__ = "4.34.1.dev99"
 
 
 def setup(app: Sphinx):

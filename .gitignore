@@ -3,8 +3,11 @@
 /.pydevproject
 build/
 /dist
-/breathe.egg-info
+/*.egg-info
 /.mypy_cache
+/.pytest_cache
+/.venv
+breathe/_version.py
 
 # Folder for placing stuff to be ignored
 /ignored

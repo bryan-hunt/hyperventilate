@@ -1,5 +1,79 @@
+[build-system]
+requires = ["setuptools", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperventilate"
+description = "Sphinx Doxygen Renderer forked from Breathe"
+maintainers = [
+  { name = "Bryan Hunt", email = "bryan-hunt@users.noreply.github.com" }
+]
+license = { file = 'LICENSE' }
+classifiers = [
+  "License :: OSI Approved :: BSD License",
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Documentation",
+  "Topic :: Text Processing",
+  "Topic :: Utilities"
+]
+requires-python = ">=3.8"
+dependencies = [
+  "Sphinx>=4.0,!=5.0.0",
+  "docutils>=0.12",
+  "xsdata"
+]
+dynamic = ["version", "readme"]
+
+[project.optional-dependencies]
+lxml = ["lxml"]
+
+[project.scripts]
+breathe-apidoc = "breathe.apidoc:main"
+
+[tool.setuptools_scm]
+write_to = "breathe/_version.py"
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic]
+readme = {file = "README.rst"}
+
+[tool.setuptools.packages.find]
+include = ["breathe*"]
+exclude = ["tests*"]
+
 [tool.black]
 line-length = 100
 extend-exclude = '''
 ^/breathe/parser/.*
 '''
+
+[tool.mypy]
+namespace_packages = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+implicit_reexport = false
+strict_equality = true
+
+[tool.mypy.overrides]
+module = "breathe.parser.*"
+ignore_errors = true
