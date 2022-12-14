@@ -77,3 +77,11 @@ strict_equality = true
 [tool.mypy.overrides]
 module = "breathe.parser.*"
 ignore_errors = true
+
+[tool.pytest.ini_options]
+pythonpath = "./"
+minversion = "6.0"
+addopts = "-ra -v --cov=breathe"
+testpaths = [
+    "tests"
+]

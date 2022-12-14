@@ -28,11 +28,11 @@ clean:
 
 .PHONY: test
 test:
-	cd tests && python3 -m pytest -v
+	pytest
 
 .PHONY: dev-test
 dev-test:
-	cd tests && PYTHONPATH=../:$(PYTHONPATH) python3 -m pytest -v
+	pytest
 
 .PHONY: flake8
 flake8:
@@ -45,7 +45,3 @@ black:
 .PHONY: type-check
 type-check:
 	mypy --warn-redundant-casts --warn-unused-ignores breathe tests
-
-.PHONY: version-check
-version-check:
-	 PYTHONPATH=../:$(PYTHONPATH) python3 scripts/version-check.py
