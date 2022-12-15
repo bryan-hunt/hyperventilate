@@ -467,25 +467,3 @@ def get_matches(datafile):
             argsstrings.append(child.getElementsByTagName("argsstring")[0].childNodes[0].data)
     matches = [[m, sectiondef] for m in sectiondef.memberdef]
     return argsstrings, matches
-
-
-@pytest.mark.sphinx(testroot="empty")
-def test_resolve_overrides(app):
-    # Test that multiple function overrides works
-    argsstrings, matches = get_matches("arange.xml")
-    cls = get_directive(app)
-
-    # Verify that the exact arguments returns one override
-    for args in argsstrings:
-        ast_param = cls._parse_args(args)
-        ret = cls._resolve_function(matches, ast_param, None)
-
-
-@pytest.mark.sphinx(testroot="empty")
-def test_ellipsis(app):
-    argsstrings, matches = get_matches("ellipsis.xml")
-    cls = get_directive(app)
-
-    # Verify that parsing an ellipsis works
-    ast_param = cls._parse_args(argsstrings[0])
-    ret = cls._resolve_function(matches, ast_param, None)
