@@ -6,9 +6,11 @@ class DoxygenTypeSubItemFinder(ItemFinder):
     def filter_(self, ancestors, filter_: Filter, matches) -> None:
         """Find nodes which match the filter. Doesn't test this node, only its children"""
 
+        compounddefs = self.data_object.compounddef
         node_stack = stack(self.data_object, ancestors)
-        compound_finder = self.item_finder_factory.create_finder(self.data_object.compounddef)
-        compound_finder.filter_(node_stack, filter_, matches)
+        for compounddef in compounddefs:
+            compounddef_finder = self.item_finder_factory.create_finder(compounddef)
+            compounddef_finder.filter_(node_stack, filter_, matches)
 
 
 class CompoundDefTypeSubItemFinder(ItemFinder):

@@ -40,7 +40,7 @@ class MaskFactory(MaskFactoryBase):
 
     def mask(self, data_object):
         try:
-            node_type = data_object.node_type
+            node_type = type(data_object)
         except AttributeError as e:
             # Horrible hack to silence errors on filtering unicode objects
             # until we fix the parsing

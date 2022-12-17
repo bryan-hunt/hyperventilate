@@ -1,6 +1,7 @@
 from breathe.finder import ItemFinder, stack
 from breathe.renderer.filter import Filter, FilterFactory
 from breathe.parser import DoxygenCompoundParser
+from breathe.parser.xsparse import memberdefType
 
 from sphinx.application import Sphinx
 
@@ -11,7 +12,7 @@ class DoxygenTypeSubItemFinder(ItemFinder):
     def filter_(self, ancestors, filter_: Filter, matches) -> None:
         """Find nodes which match the filter. Doesn't test this node, only its children"""
 
-        compounds = self.data_object.get_compound()
+        compounds = self.data_object.compound
         node_stack = stack(self.data_object, ancestors)
         for compound in compounds:
             compound_finder = self.item_finder_factory.create_finder(compound)
@@ -32,7 +33,6 @@ class CompoundTypeSubItemFinder(ItemFinder):
         parser and continue at the top level of that pretending that this node is the parent of the
         top level node of the compound file.
         """
-
         node_stack = stack(self.data_object, ancestors)
 
         # Match against compound object
@@ -40,7 +40,7 @@ class CompoundTypeSubItemFinder(ItemFinder):
             matches.append(node_stack)
 
         # Descend to member children
-        members = self.data_object.get_member()
+        members = self.data_object.member
         # TODO: find a more precise type for the Doxygen nodes
         member_matches: List[Any] = []
         for member in members:
@@ -55,7 +55,7 @@ class CompoundTypeSubItemFinder(ItemFinder):
 
             for member_stack in member_matches:
                 ref_filter = self.filter_factory.create_id_filter(
-                    "memberdef", member_stack[0].refid
+                    memberdefType, member_stack[0].refid
                 )
                 finder.filter_(node_stack, ref_filter, matches)
         else:

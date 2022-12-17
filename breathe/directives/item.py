@@ -42,9 +42,12 @@ class _DoxygenBaseItemDirective(BaseDirective):
 
         try:
             finder = self.finder_factory.create_finder(project_info)
+            print("_DoxygenBaseItemDirective", type(finder))
         except MTimeError as e:
             warning = self.create_warning(None, kind=self.kind)
             return warning.warn("doxygen{kind}: %s" % e)
+
+        print(f"_DoxygenBaseItemDirective - {namespace}::{name}")
 
         finder_filter = self.create_finder_filter(namespace, name)
 

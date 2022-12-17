@@ -199,7 +199,10 @@ We have to write:
 
 """
 
+from enum import Enum
+
 from breathe import path_handler
+from breathe.parser.xsparse import *
 
 from sphinx.application import Sphinx
 
@@ -321,15 +324,11 @@ class NodeNameAccessor(Accessor):
 class NodeTypeAccessor(Accessor):
     def __call__(self, node_stack) -> str:
         data_object = self.selector(node_stack)
-        try:
-            return data_object.node_type
-        except AttributeError as e:
-            # Horrible hack to silence errors on filtering unicode objects
-            # until we fix the parsing
-            if type(data_object) == str:
-                return "unicode"
-            else:
-                raise e
+        node_type = type(data_object) 
+
+        # Horrible hack to silence errors on filtering unicode objects
+        # until we fix the parsing
+        return "unicode" if node_type == str else node_type
 
 
 class KindAccessor(Accessor):
@@ -348,7 +347,8 @@ class AttributeAccessor(Accessor):
         self.attribute_name = attribute_name
 
     def __call__(self, node_stack) -> Any:
-        return getattr(self.selector(node_stack), self.attribute_name)
+        result = getattr(self.selector(node_stack), self.attribute_name)
+        return result.value if isinstance(result, Enum) else result
 
 
 class LambdaAccessor(Accessor):
@@ -397,9 +397,9 @@ class HasContentFilter(Filter):
         self.accessor = accessor
 
     def allow(self, node_stack) -> bool:
-        """Detects if the node in questions has an empty .content_ property."""
+        """Detects if the node in questions has an empty .content property."""
 
-        return bool(self.accessor(node_stack).content_)
+        return bool(self.accessor(node_stack).content)
 
 
 class EndsWithFilter(Filter):
@@ -428,6 +428,7 @@ class InFilter(Filter):
 
     def allow(self, node_stack) -> bool:
         name = self.accessor(node_stack)
+#        print(f"InFilter {name in self.members}", name, self.members, self.accessor )
         return name in self.members
 
 
@@ -605,11 +606,11 @@ class FilterFactory:
 
         non_class_memberdef = (
             has_grandparent
-            & (grandparent.node_type == "compounddef")
+            & (grandparent.node_type == compounddefType)
             & (grandparent.kind != "class")
             & (grandparent.kind != "struct")
             & (grandparent.kind != "interface")
-            & (node.node_type == "memberdef")
+            & (node.node_type == memberdefType)
         )
 
         return (
@@ -645,10 +646,10 @@ class FilterFactory:
         """
 
         node = Node()
-        node_is_innerclass = (node.node_type == "ref") & (node.node_name == "innerclass")
+        node_is_innerclass = (node.node_type == refType) & (node.node_name == "innerclass")
 
         parent = Parent()
-        parent_is_compounddef = parent.node_type == "compounddef"
+        parent_is_compounddef = parent.node_type == compounddefType
         parent_is_class = parent.kind.is_one_of(["class", "struct", "interface"])
 
         allowed = set()
@@ -720,7 +721,7 @@ class FilterFactory:
         """
 
         node = Node()
-        node_is_description = node.node_type == "description"
+        node_is_description = node.node_type == descriptionType
         parent = Parent()
         parent_is_level = parent.node_type == level
 
@@ -735,11 +736,11 @@ class FilterFactory:
 
     def _create_public_members_filter(self, options: Dict[str, Any]) -> Filter:
         node = Node()
-        node_is_memberdef = node.node_type == "memberdef"
+        node_is_memberdef = node.node_type == memberdefType
         node_is_public = node.prot == "public"
 
         parent = Parent()
-        parent_is_sectiondef = parent.node_type == "sectiondef"
+        parent_is_sectiondef = parent.node_type == sectiondefType
 
         # Nothing with a parent that's a sectiondef
         is_memberdef = parent_is_sectiondef & node_is_memberdef
@@ -773,11 +774,11 @@ class FilterFactory:
         """'prot' is the doxygen xml term for 'public', 'protected' and 'private' categories."""
 
         node = Node()
-        node_is_memberdef = node.node_type == "memberdef"
+        node_is_memberdef = node.node_type == memberdefType
         node_is_public = node.prot == prot
 
         parent = Parent()
-        parent_is_sectiondef = parent.node_type == "sectiondef"
+        parent_is_sectiondef = parent.node_type == sectiondefType
 
         # Nothing with a parent that's a sectiondef
         is_memberdef = parent_is_sectiondef & node_is_memberdef
@@ -790,7 +791,7 @@ class FilterFactory:
 
     def _create_undoc_members_filter(self, options: Dict[str, Any]) -> Filter:
         node = Node()
-        node_is_memberdef = node.node_type == "memberdef"
+        node_is_memberdef = node.node_type == memberdefType
 
         node_has_description = (
             node.briefdescription.has_content() | node.detaileddescription.has_content()
@@ -836,7 +837,7 @@ class FilterFactory:
     def create_outline_filter(self, options: Dict[str, Any]) -> Filter:
         if "outline" in options:
             node = Node()
-            return ~node.node_type.is_one_of(["description", "inc"])
+            return ~node.node_type.is_one_of([descriptionType, incType])
         else:
             return OpenFilter()
 
@@ -853,7 +854,7 @@ class FilterFactory:
                 # the NotFilter this chunk always returns true and
                 # so does not affect the result of the filtering
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Node()), ["compounddef"]),
+                    InFilter(NodeTypeAccessor(Node()), [compounddefType]),
                     InFilter(KindAccessor(Node()), ["file"]),
                     FilePathFilter(LambdaAccessor(Node(), lambda x: x.location), filename),
                     Gather(LambdaAccessor(Node(), lambda x: x.namespaces), valid_names),
@@ -868,12 +869,12 @@ class FilterFactory:
                 # required as the location attribute for the
                 # namespace in the xml is unreliable.
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Parent()), ["compounddef"]),
-                    InFilter(NodeTypeAccessor(Node()), ["ref"]),
+                    InFilter(NodeTypeAccessor(Parent()), [compounddefType]),
+                    InFilter(NodeTypeAccessor(Node()), [refType]),
                     InFilter(NodeNameAccessor(Node()), ["innerclass", "innernamespace"]),
                     NotFilter(
                         InFilter(
-                            LambdaAccessor(Node(), lambda x: x.content_[0].getValue()), valid_names
+                            LambdaAccessor(Node(), lambda x: x.content[0]), valid_names
                         )
                     ),
                 )
@@ -883,12 +884,12 @@ class FilterFactory:
                 # namespace that is going to be rendered as they will be
                 # rendered with that namespace and we don't want them twice
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Parent()), ["compounddef"]),
-                    InFilter(NodeTypeAccessor(Node()), ["ref"]),
+                    InFilter(NodeTypeAccessor(Parent()), [compounddefType]),
+                    InFilter(NodeTypeAccessor(Node()), [refType]),
                     InFilter(NodeNameAccessor(Node()), ["innerclass", "innernamespace"]),
                     NamespaceFilter(
                         NamespaceAccessor(Parent()),
-                        LambdaAccessor(Node(), lambda x: x.content_[0].getValue()),
+                        LambdaAccessor(Node(), lambda x: x.content[0]),
                     ),
                 )
             ),
@@ -898,7 +899,7 @@ class FilterFactory:
                 # cross into a namespace xml file which has entries
                 # from multiple files in it
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Node()), ["memberdef"]),
+                    InFilter(NodeTypeAccessor(Node()), [memberdefType]),
                     NotFilter(
                         FilePathFilter(LambdaAccessor(Node(), lambda x: x.location), filename)
                     ),
@@ -914,7 +915,7 @@ class FilterFactory:
                 # location even if they namespace is spread over
                 # multiple files
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Node()), ["compounddef"]),
+                    InFilter(NodeTypeAccessor(Node()), [compounddefType]),
                     NotFilter(InFilter(KindAccessor(Node()), ["namespace"])),
                     NotFilter(
                         FilePathFilter(LambdaAccessor(Node(), lambda x: x.location), filename)
@@ -940,17 +941,17 @@ class FilterFactory:
         node = Node()
 
         # Filter for public memberdefs
-        node_is_memberdef = node.node_type == "memberdef"
+        node_is_memberdef = node.node_type == memberdefType
         node_is_public = node.prot == "public"
 
         public_members = node_is_memberdef & node_is_public
 
         # Filter for public innerclasses
         parent = Parent()
-        parent_is_compounddef = parent.node_type == "compounddef"
+        parent_is_compounddef = parent.node_type == compounddefType
         parent_is_class = parent.kind == kind
 
-        node_is_innerclass = (node.node_type == "ref") & (node.node_name == "innerclass")
+        node_is_innerclass = (node.node_type == refType) & (node.node_name == "innerclass")
         node_is_public = node.prot == "public"
 
         public_innerclass = (
@@ -963,16 +964,16 @@ class FilterFactory:
         filter_ = AndFilter(
             NotFilter(
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Parent()), ["compounddef"]),
-                    InFilter(NodeTypeAccessor(Node()), ["ref"]),
+                    InFilter(NodeTypeAccessor(Parent()), [compounddefType]),
+                    InFilter(NodeTypeAccessor(Node()), [refType]),
                     InFilter(NodeNameAccessor(Node()), ["innerclass", "innernamespace"]),
                 )
             ),
             NotFilter(
                 AndFilter(
-                    InFilter(NodeTypeAccessor(Parent()), ["compounddef"]),
+                    InFilter(NodeTypeAccessor(Parent()), [compounddefType]),
                     InFilter(KindAccessor(Parent()), ["group"]),
-                    InFilter(NodeTypeAccessor(Node()), ["sectiondef"]),
+                    InFilter(NodeTypeAccessor(Node()), [sectiondefType]),
                     InFilter(KindAccessor(Node()), ["func"]),
                 )
             ),
@@ -991,7 +992,7 @@ class FilterFactory:
 
     def create_file_finder_filter(self, filename: str) -> Filter:
         filter_ = AndFilter(
-            InFilter(NodeTypeAccessor(Node()), ["compounddef"]),
+            InFilter(NodeTypeAccessor(Node()), [compounddefType]),
             InFilter(KindAccessor(Node()), ["file"]),
             FilePathFilter(LambdaAccessor(Node(), lambda x: x.location), filename),
         )
@@ -1003,11 +1004,11 @@ class FilterFactory:
         node = Node()
         parent = Parent()
 
-        node_matches = (node.node_type == "member") & (node.kind == kind) & (node.name == name)
+        node_matches = (node.node_type == MemberType) & (node.kind == kind) & (node.name == name)
 
         if namespace:
             parent_matches = (
-                (parent.node_type == "compound")
+                (parent.node_type == CompoundType)
                 & (
                     (parent.kind == "namespace")
                     | (parent.kind == "class")
@@ -1021,7 +1022,7 @@ class FilterFactory:
             is_implementation_file = parent.name.endswith(
                 self.app.config.breathe_implementation_filename_extensions
             )
-            parent_is_compound = parent.node_type == "compound"
+            parent_is_compound = parent.node_type == CompoundType
             parent_is_file = (parent.kind == "file") & (~is_implementation_file)
             parent_is_not_file = parent.kind != "file"
 
@@ -1031,7 +1032,7 @@ class FilterFactory:
 
     def create_function_and_all_friend_finder_filter(self, namespace: str, name: str) -> Filter:
         parent = Parent()
-        parent_is_compound = parent.node_type == "compound"
+        parent_is_compound = parent.node_type == CompoundType
         parent_is_group = parent.kind == "group"
 
         function_filter = self.create_member_finder_filter(namespace, name, "function")
@@ -1045,13 +1046,13 @@ class FilterFactory:
         """Returns a filter which looks for an enumvalue with the specified name."""
 
         node = Node()
-        return (node.node_type == "enumvalue") & (node.name == name)
+        return (node.node_type == enumvalueType) & (node.name == name)
 
     def create_compound_finder_filter(self, name: str, kind: str) -> Filter:
         """Returns a filter which looks for a compound with the specified name and kind."""
 
         node = Node()
-        return (node.node_type == "compound") & (node.kind == kind) & (node.name == name)
+        return (node.node_type == CompoundType) & (node.kind == kind) & (node.name == name)
 
     def create_finder_filter(self, kind: str, name: str) -> Filter:
         """Returns a filter which looks for the compound node from the index which is a group node
@@ -1063,20 +1064,20 @@ class FilterFactory:
 
         if kind == "group":
             filter_ = AndFilter(
-                InFilter(NodeTypeAccessor(Node()), ["compound"]),
+                InFilter(NodeTypeAccessor(Node()), [CompoundType]),
                 InFilter(KindAccessor(Node()), ["group"]),
                 InFilter(NameAccessor(Node()), [name]),
             )
         elif kind == "page":
             filter_ = AndFilter(
-                InFilter(NodeTypeAccessor(Node()), ["compound"]),
+                InFilter(NodeTypeAccessor(Node()), [CompoundType]),
                 InFilter(KindAccessor(Node()), ["page"]),
                 InFilter(NameAccessor(Node()), [name]),
             )
         else:
             # Assume kind == 'namespace'
             filter_ = AndFilter(
-                InFilter(NodeTypeAccessor(Node()), ["compound"]),
+                InFilter(NodeTypeAccessor(Node()), [CompoundType]),
                 InFilter(KindAccessor(Node()), ["namespace"]),
                 InFilter(NameAccessor(Node()), [name]),
             )

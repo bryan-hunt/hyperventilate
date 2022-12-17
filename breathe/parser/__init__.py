@@ -1,11 +1,11 @@
-from . import index
-from . import compound
+from .xsparse import doxygen, doxygenindex
+from xsdata.formats.dataclass.parsers import XmlParser
 
 from breathe import file_state_cache, path_handler
 from breathe.project import ProjectInfo
 
 from sphinx.application import Sphinx
-
+from typing import Any, Sequence
 
 class ParserError(Exception):
     def __init__(self, error: Exception, filename: str):
@@ -30,6 +30,7 @@ class Parser:
     def __init__(self, app: Sphinx, cache):
         self.app = app
         self.cache = cache
+        self.parser = XmlParser()
 
 
 class DoxygenIndexParser(Parser):
@@ -43,13 +44,16 @@ class DoxygenIndexParser(Parser):
         except KeyError:
             # If that fails, parse it afresh
             try:
-                result = index.parse(filename)
+                result = self.parser.parse(open(filename, "rb"), doxygenindex)
+                # result = index.parse(filename)
                 self.cache[filename] = result
                 return result
-            except index.ParseError as e:
+            except Exception as e:
                 raise ParserError(e, filename)
-            except index.FileIOError as e:
-                raise FileIOError(e, filename)
+            # except index.ParseError as e:
+            #     raise ParserError(e, filename)
+            # except index.FileIOError as e:
+            #     raise FileIOError(e, filename)
 
 
 class DoxygenCompoundParser(Parser):
@@ -74,13 +78,16 @@ class DoxygenCompoundParser(Parser):
         except KeyError:
             # If that fails, parse it afresh
             try:
-                result = compound.parse(filename)
+                result = self.parser.parse(open(filename, "rb"), doxygen)
+                #result = compound.parse(filename)
                 self.cache[filename] = result
                 return result
-            except compound.ParseError as e:
+            except Exception as e:
                 raise ParserError(e, filename)
-            except compound.FileIOError as e:
-                raise FileIOError(e, filename)
+            # except compound.ParseError as e:
+            #     raise ParserError(e, filename)
+            # except compound.FileIOError as e:
+            #     raise FileIOError(e, filename)
 
 
 class DoxygenParserFactory:
@@ -95,3 +102,13 @@ class DoxygenParserFactory:
 
     def create_compound_parser(self, project_info: ProjectInfo) -> DoxygenCompoundParser:
         return DoxygenCompoundParser(self.app, self.cache, project_info)
+
+
+def DoxygenFindWildcardContent(node: Any, qname: str) -> Any:
+    result = getattr(node, qname, None)
+    if result is None:
+        content = getattr(node, 'content', [])
+        for item in content:
+            name = getattr(item, 'qname', None)
+            if name == qname:
+                return item

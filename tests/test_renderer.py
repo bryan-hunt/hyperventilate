@@ -3,13 +3,13 @@ import pytest
 
 import sphinx.addnodes
 import sphinx.environment
-from breathe.parser.compound import (
-    compounddefTypeSub,
-    linkedTextTypeSub,
-    memberdefTypeSub,
-    paramTypeSub,
-    refTypeSub,
-    MixedContainer,
+from breathe.parser.xsparse import (
+    compounddefType,
+    linkedTextType,
+    descriptionType,
+    memberdefType,
+    paramType,
+    refType
 )
 from breathe.renderer.sphinxrenderer import SphinxRenderer
 from breathe.renderer.filter import OpenFilter
@@ -17,64 +17,6 @@ from docutils import frontend, parsers, utils
 
 from .mocks import MockReporter
 from .utils import find_node
-
-
-class WrappedDoxygenNode:
-    """
-    A base class for test wrappers of Doxygen nodes. It allows setting all attributes via keyword arguments
-    in the constructor.
-    """
-
-    def __init__(self, cls, *args, **kwargs):
-        if cls:
-            cls.__init__(self, args)
-        for name, value in kwargs.items():
-            if not hasattr(self, name):
-                raise AttributeError("invalid attribute " + name)
-            setattr(self, name, value)
-
-
-class WrappedMixedContainer(MixedContainer, WrappedDoxygenNode):
-    """A test wrapper of Doxygen mixed container."""
-
-    def __init__(self, **kwargs):
-        MixedContainer.__init__(self, None, None, None, None)
-        WrappedDoxygenNode.__init__(self, None, **kwargs)
-
-
-class WrappedLinkedText(linkedTextTypeSub, WrappedDoxygenNode):
-    """A test wrapper of Doxygen linked text."""
-
-    def __init__(self, **kwargs):
-        WrappedDoxygenNode.__init__(self, linkedTextTypeSub, **kwargs)
-
-
-class WrappedMemberDef(memberdefTypeSub, WrappedDoxygenNode):
-    """A test wrapper of Doxygen class/file/namespace member symbol such as a function declaration."""
-
-    def __init__(self, **kwargs):
-        WrappedDoxygenNode.__init__(self, memberdefTypeSub, **kwargs)
-
-
-class WrappedParam(paramTypeSub, WrappedDoxygenNode):
-    """A test wrapper of Doxygen parameter."""
-
-    def __init__(self, **kwargs):
-        WrappedDoxygenNode.__init__(self, paramTypeSub, **kwargs)
-
-
-class WrappedRef(refTypeSub, WrappedDoxygenNode):
-    """A test wrapper of Doxygen ref."""
-
-    def __init__(self, node_name, **kwargs):
-        WrappedDoxygenNode.__init__(self, refTypeSub, node_name, **kwargs)
-
-
-class WrappedCompoundDef(compounddefTypeSub, WrappedDoxygenNode):
-    """A test wrapper of Doxygen compound definition."""
-
-    def __init__(self, **kwargs):
-        WrappedDoxygenNode.__init__(self, compounddefTypeSub, **kwargs)
 
 
 class MockMemo:
@@ -199,15 +141,15 @@ def render(
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void foo",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="foo",
         argsstring="(int)",
         virt="non-virtual",
         param=[
-            WrappedParam(type_=WrappedLinkedText(content_=[WrappedMixedContainer(value="int")]))
+            paramType(type=linkedTextType(content=["int"]))
         ],
     )
     signature = find_node(render(app, member_def), "desc_signature")
@@ -231,8 +173,11 @@ def test_render_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_typedef(app):
-    member_def = WrappedMemberDef(
-        kind="typedef", definition="typedef int foo", type_="int", name="foo"
+    member_def = memberdefType(
+        kind="typedef", 
+        definition="typedef int foo", 
+        type=linkedTextType(content=["int"]), 
+        name="foo"
     )
     signature = find_node(render(app, member_def), "desc_signature")
     assert signature.astext() == "typedef int foo"
@@ -240,8 +185,11 @@ def test_render_typedef(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_c_typedef(app):
-    member_def = WrappedMemberDef(
-        kind="typedef", definition="typedef unsigned int bar", type_="unsigned int", name="bar"
+    member_def = memberdefType(
+        kind="typedef", 
+        definition="typedef unsigned int bar", 
+        type=linkedTextType(content=["unsigned int"]), 
+        name="bar"
     )
     signature = find_node(render(app, member_def, domain="c"), "desc_signature")
     assert signature.astext() == "typedef unsigned int bar"
@@ -249,10 +197,10 @@ def test_render_c_typedef(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_c_function_typedef(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="typedef",
         definition="typedef void* (*voidFuncPtr)(float, int)",
-        type_="void* (*",
+        type=linkedTextType(content=["void* (*"]),
         name="voidFuncPtr",
         argsstring=")(float, int)",
     )
@@ -271,8 +219,11 @@ def test_render_c_function_typedef(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_using_alias(app):
-    member_def = WrappedMemberDef(
-        kind="typedef", definition="using foo = int", type_="int", name="foo"
+    member_def = memberdefType(
+        kind="typedef",
+        definition="using foo = int",
+        type=linkedTextType(content=["int"]),
+        name="foo"
     )
     signature = find_node(render(app, member_def), "desc_signature")
     assert signature.astext() == "using foo = int"
@@ -280,10 +231,10 @@ def test_render_using_alias(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_const_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void f",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="f",
         argsstring="() const",
         virt="non-virtual",
@@ -295,10 +246,10 @@ def test_render_const_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_lvalue_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void f",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="f",
         argsstring="() &",
         virt="non-virtual",
@@ -310,10 +261,10 @@ def test_render_lvalue_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_rvalue_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void f",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="f",
         argsstring="() &&",
         virt="non-virtual",
@@ -325,10 +276,10 @@ def test_render_rvalue_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_const_lvalue_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void f",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="f",
         argsstring="() const &",
         virt="non-virtual",
@@ -341,10 +292,10 @@ def test_render_const_lvalue_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_const_rvalue_func(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="function",
         definition="void f",
-        type_="void",
+        type=linkedTextType(content=["void"]),
         name="f",
         argsstring="() const &&",
         virt="non-virtual",
@@ -357,12 +308,12 @@ def test_render_const_rvalue_func(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_variable_initializer(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="variable",
         definition="const int EOF",
-        type_="const int",
+        type=linkedTextType(content=["const int"]),
         name="EOF",
-        initializer=WrappedMixedContainer(value="= -1"),
+        initializer=linkedTextType(content=["= -1"]),
     )
     signature = find_node(render(app, member_def), "desc_signature")
     assert signature.astext() == "const int EOF = -1"
@@ -370,20 +321,20 @@ def test_render_variable_initializer(app):
 
 @pytest.mark.sphinx(testroot="empty")
 def test_render_define_initializer(app):
-    member_def = WrappedMemberDef(
+    member_def = memberdefType(
         kind="define",
         name="MAX_LENGTH",
-        initializer=WrappedLinkedText(content_=[WrappedMixedContainer(value="100")]),
+        initializer=linkedTextType(content=["100"]),
     )
     signature_w_initializer = find_node(
         render(app, member_def, show_define_initializer=True), "desc_signature"
     )
     assert signature_w_initializer.astext() == "MAX_LENGTH 100"
 
-    member_def_no_show = WrappedMemberDef(
+    member_def_no_show = memberdefType(
         kind="define",
         name="MAX_LENGTH_NO_INITIALIZER",
-        initializer=WrappedLinkedText(content_=[WrappedMixedContainer(value="100")]),
+        initializer=linkedTextType(content=["100"]),
     )
 
     signature_wo_initializer = find_node(
@@ -395,7 +346,7 @@ def test_render_define_initializer(app):
 @pytest.mark.sphinx(testroot="empty")
 def test_render_define_no_initializer(app):
     sphinx.addnodes.setup(app)
-    member_def = WrappedMemberDef(kind="define", name="USE_MILK")
+    member_def = memberdefType(kind="define", name="USE_MILK")
     signature = find_node(render(app, member_def), "desc_signature")
     assert signature.astext() == "USE_MILK"
 
@@ -405,14 +356,19 @@ def test_render_innergroup(app):
     refid = "group__innergroup"
     mock_compound_parser = MockCompoundParser(
         {
-            refid: WrappedCompoundDef(
-                kind="group", compoundname="InnerGroup", briefdescription="InnerGroup"
+            refid: compounddefType(
+                kind="group", 
+                compoundname="InnerGroup",
+                briefdescription=descriptionType(content=["InnerGroup"])
             )
         }
     )
-    ref = WrappedRef("InnerGroup", refid=refid)
-    compound_def = WrappedCompoundDef(
-        kind="group", compoundname="OuterGroup", briefdescription="OuterGroup", innergroup=[ref]
+    ref = refType("InnerGroup", refid=refid)
+    compound_def = compounddefType(
+        kind="group", 
+        compoundname="OuterGroup", 
+        briefdescription=descriptionType(content=["OuterGroup"]),
+        innergroup=[ref]
     )
     assert all(
         el.astext() != "InnerGroup"
@@ -448,22 +404,3 @@ def get_directive(app):
         MockStateMachine(),
     )
     return DoxygenFunctionDirective(*cls_args)
-
-
-def get_matches(datafile):
-    from breathe.parser.compoundsuper import sectiondefType
-    from xml.dom import minidom
-
-    argsstrings = []
-    with open(os.path.join(os.path.dirname(__file__), "data", datafile)) as fid:
-        xml = fid.read()
-    doc = minidom.parseString(xml)
-
-    sectiondef = sectiondefType.factory()
-    for child in doc.documentElement.childNodes:
-        sectiondef.buildChildren(child, "memberdef")
-        if getattr(child, "tagName", None) == "memberdef":
-            # Get the argsstring function declaration
-            argsstrings.append(child.getElementsByTagName("argsstring")[0].childNodes[0].data)
-    matches = [[m, sectiondef] for m in sectiondef.memberdef]
-    return argsstrings, matches

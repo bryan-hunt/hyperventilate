@@ -96,6 +96,10 @@ class DoxygenFunctionDirective(BaseDirective):
             namespace, function_name
         )
 
+        print("\n\nfinder_filter: ", finder_filter)
+        print("\n\nnamespace: ", namespace)
+        print("\n\nfunction_name: ", function_name)
+
         # TODO: find a more specific type for the Doxygen nodes
         matchesAll: List[Any] = []
         finder.filter_(finder_filter, matchesAll)
@@ -230,14 +234,14 @@ class DoxygenFunctionDirective(BaseDirective):
         node = node_stack[0]
         with WithContext(object_renderer, context):
             # this part should be kept in sync with visit_function in sphinxrenderer
-            name = node.get_name()
+            name = node.name
             # assume we are only doing this for C++ declarations
             declaration = " ".join(
                 [
                     object_renderer.create_template_prefix(node),
-                    "".join(n.astext() for n in object_renderer.render(node.get_type())),
+                    "".join(n.astext() for n in object_renderer.render(node.type)),
                     name,
-                    node.get_argsstring(),
+                    node.argsstring,
                 ]
             )
         parser = cpp.DefinitionParser(
@@ -247,6 +251,10 @@ class DoxygenFunctionDirective(BaseDirective):
         return str(ast)
 
     def _resolve_function(self, matches, args: Optional[cpp.ASTParametersQualifiers], project_info):
+        print("\n\n_resolve_function: ", matches)
+        print("\n\n_resolve_function: ", args)
+        print("\n\n_resolve_function: ", project_info)
+
         if not matches:
             raise _NoMatchingFunctionError()
 
